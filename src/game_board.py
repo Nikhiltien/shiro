@@ -1,134 +1,110 @@
 import io
-import os
-import glob
 import asyncio
+import logging
 import chess
 import chess.engine
 import chess.pgn
-import logging
 
-logging.basicConfig(level=logging.INFO)
-
-class GameBoard:
-    def __init__(self, engine_name="stockfish"):
-        self.logger = logging.getLogger(__name__)
-        self.board = chess.Board()
-        self.game = chess.pgn.Game()
-        self.openings = {}
-        self.load_eco_book()
-
-        self.engine_path = f"engines/{engine_name}" if engine_name else None
-        self.engine = None
-        self.transport = None
-        # if self.engine_path:
-        #     asyncio.run(self.init_engine())
-            
-        self.reset_board()
+class OpeningNode:
+    def __init__(self):
+        self.children = {}  # Maps move to the next OpeningNode
+        self.openings = []  # List of tuples (ECO code, name)
 
     def load_eco_book(self, file_path='book/scid.eco'):
         try:
             with open(file_path, 'r') as eco_file:
-                self.openings = self.build_opening_hashmap(eco_file.read())
+                eco_book_content = eco_file.read()
+            return self.build_opening_tree(eco_book_content)
         except FileNotFoundError:
-            self.logger.error(f"ECO book file not found at {file_path}")
+            print(f"ECO book file not found at {file_path}")
             raise
         except Exception as e:
-            self.logger.error(f"Error loading ECO book: {e}")
+            print(f"Error loading ECO book: {e}")
             raise
 
     @staticmethod
-    def build_opening_hashmap(eco_book):
-        openings = {}
-        current_line = ""
-        
-        def parse_opening_line(line):
-            # Extract the ECO code, opening name, and moves
-            parts = line.split('"')
-            code = parts[0].strip()
-            name = parts[1].strip()
-            moves = parts[2].split('*')[0].strip()  # Ignore anything after '*'
-            return code, name, moves
-
-        def update_openings(openings, code, name, moves):
-            move_list = moves.split()
-            for i in range(1, len(move_list) + 1):
-                key = ' '.join(move_list[:i])
-                if key not in openings:
-                    openings[key] = []
-                openings[key].append((code, name))
+    def build_opening_tree(eco_book):
+        root = OpeningNode()
+        current_opening_lines = ''
 
         for line in eco_book.splitlines():
-            # Check if the line starts with an ECO code (A-E)
-            if line.startswith(tuple("ABCDE")):
-                # Process the previous line if it's not empty
-                if current_line:
-                    code, name, moves = parse_opening_line(current_line)
-                    update_openings(openings, code, name, moves)
-                current_line = line
+            if line.startswith(tuple("ABCDE")) and '*' in current_opening_lines:
+                # Parse the current opening
+                code, name, moves = OpeningNode.parse_opening_line(current_opening_lines)
+                move_list = moves.split()
+                root.add_opening(move_list, code, name)
+                # Reset for the next opening
+                current_opening_lines = line
             else:
                 # Continue building the current opening
-                current_line += " " + line
+                current_opening_lines += ' ' + line
 
-        # Process the last line
-        if current_line:
-            code, name, moves = parse_opening_line(current_line)
-            update_openings(openings, code, name, moves)
-        print(openings)
-        return openings
+        # Process the last opening if it exists
+        if current_opening_lines:
+            code, name, moves = OpeningNode.parse_opening_line(current_opening_lines)
+            move_list = moves.split()
+            root.add_opening(move_list, code, name)
 
-    def find_opening_from_game(self, game):
-        board = chess.Board()
-        moves_san_with_numbers = []
+        return root
 
-        for i, move in enumerate(game.mainline_moves()):
-            if board.is_legal(move):
-                san_move = board.san(move)
-                move_number = (i // 2) + 1
-                formatted_move = f"{move_number}.{san_move}" if i % 2 == 0 else san_move
-                moves_san_with_numbers.append(formatted_move)
-                board.push(move)
+    def find_opening(self, move_list):
+        node = self
+        last_opening = None
+        for move in move_list:
+            # print(f"Searching for move: {move}")
+            # print(f"Available moves at this node: {list(node.children.keys())}")
+            if move in node.children:
+                node = node.children[move]
+                if node.openings:
+                    last_opening = node.openings
             else:
-                self.logger.error(f"Illegal move: {move.uci()} in {board.fen()}")
+                # print(f"No matching move found for {move} in sequence {move_list}")
                 break
 
-        self.logger.info(f"Formatted SAN moves with numbers: {moves_san_with_numbers}")
-        return self.find_opening(tuple(moves_san_with_numbers))
+        return last_opening if last_opening else None
 
-    def find_opening(self, moves_san_with_numbers):
-        # The moves need to be converted back to a format that matches our hashmap keys
-        eco_moves = self.convert_san_moves_to_tuple(moves_san_with_numbers)
+    def add_opening(self, move_list, code, name):
+        if not move_list:
+            self.openings.append((code, name))
+            return
 
-        for length in range(len(eco_moves), 0, -1):
-            for key in self.openings.keys():
-                if key[1][:length] == eco_moves[:length]:
-                    return self.openings[key]['name'], self.openings[key]['eco']
-        return None, None
+        move = move_list[0]
+        if move not in self.children:
+            self.children[move] = OpeningNode()
 
-    def convert_san_moves_to_tuple(self, moves_san_with_numbers):
-        # Convert the SAN moves with move numbers back to a format compatible with our hashmap keys
-        moves = []
-        for move in moves_san_with_numbers:
-            moves.append(move.split('.')[1] if '.' in move else move)
-        return tuple(moves)
+        self.children[move].add_opening(move_list[1:], code, name)
 
-    def convert_moves(self, game):
-        pgn_parts = []
-        board = chess.Board()
+    @staticmethod
+    def parse_opening_line(line):
+        parts = line.split('"')
+        code = parts[0].strip()
+        name = parts[1].strip()
+        moves = parts[2].split('*')[0].strip()
+        # print(f"Parsed opening: Code={code}, Name={name}, Moves={moves}")
+        return code, name, moves
 
-        for i, move in enumerate(game.mainline_moves()):
-            move_number = (i // 2) + 1
-            san_move = board.san(move)
+    def print_opening_book(self, move_sequence=''):
+        if self.openings:
+            for code, name in self.openings:
+                full_sequence = move_sequence.strip()
+                print(f"{code}: {name} ({full_sequence})")
 
-            if i % 2 == 0:  # White's move
-                formatted_move = f"{move_number}.{san_move}"
-            else:  # Black's move
-                formatted_move = f"{move_number}...{san_move}"
+        for move, node in self.children.items():
+            # print(f"Child node move: {move}")
+            node.print_openings(move_sequence + ' ' + move)
 
-            pgn_parts.append(formatted_move)
-            board.push(move)  # Update board to reflect the current move
+class GameBoard:
+    def __init__(self, engine_name=None):
+        self.logger = logging.getLogger(__name__)
+        self.game = chess.pgn.Game()
+        self.board = chess.Board()
+        self.opening_node = OpeningNode().load_eco_book()
 
-        eco_moves = tuple(pgn_parts)
-        return eco_moves
+        self.engine_path = f"engines/{engine_name}" if engine_name else None
+        self.engine = None
+        self.transport = None
+
+        self.reset_board()
 
     def pgn_to_game(self, pgn_string):
         try:
@@ -141,35 +117,148 @@ class GameBoard:
 
     def reset_board(self):
         self.board.reset()
-    
-    def current_fen(self):
+
+    def get_current_fen(self):
         return self.board.fen()
 
-    def load_fen(self, fen):
-        self.board.set_fen(fen)
+    def make_move(self, uci_move):
+        """
+        Makes a move on the board.
 
-    def make_move(self, move):
+        :param uci_move: The move to make, in UCI format (e.g., 'g1f3').
+        :return: True if the move was successfully made, False otherwise.
+        """
         try:
-            self.board.push(move)
-            return True
-        except ValueError:
+            move = chess.Move.from_uci(uci_move)
+            if move in self.board.legal_moves:
+                self.board.push(move)
+                return True
+            else:
+                self.logger.warning(f"Illegal move: {uci_move}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error making move: {e}")
             return False
 
     def undo_move(self):
         if len(self.board.move_stack) > 0:
             self.board.pop()
 
-    def add_variation(self, move, parent_node=None):
-        if parent_node is None:
-            parent_node = self.game.end()
-        parent_node.add_variation(move)
+    def _add_variation(self, current_node, move, comment=''):
+        """
+        Adds a new variation to the game tree.
+        
+        :param current_node: The node from which the variation starts.
+        :param move: The move (in UCI format) to add as a variation.
+        :param comment: Optional comment for the new variation.
+        :return: The new variation node.
+        """
+        try:
+            new_variation = current_node.add_variation(chess.Move.from_uci(move), comment=comment)
+            return new_variation
+        except Exception as e:
+            self.logger.error(f"Error adding variation: {e}")
+            return None
+        
+    def _promote_variation(self, node):
+        """
+        Promotes the given variation to the main variation.
 
-    def get_current_line(self):
-        return [node.move for node in self.game.mainline()]
+        :param node: The node (variation) to promote.
+        """
+        try:
+            node.parent.promote(node.move)
+        except Exception as e:
+            self.logger.error(f"Error promoting variation: {e}")
 
-    def get_move_stack(self):
-        return [self.board.san(move) for move in self.board.move_stack]
+    def _navigate_to_node(self, path):
+        """
+        Navigates to a specific node in the game tree based on a list of moves.
 
+        :param path: List of moves (in UCI format) leading to the desired node.
+        :return: The node if found, otherwise None.
+        """
+        current_node = self.game
+        try:
+            for move in path:
+                found = False
+                for variation in current_node.variations:
+                    if variation.move == chess.Move.from_uci(move):
+                        current_node = variation
+                        found = True
+                        break
+                if not found:
+                    return None
+            return current_node
+        except Exception as e:
+            self.logger.error(f"Error navigating to node: {e}")
+            return None
+
+    def _annotate_move(self, node, comment='', nags=[]):
+        """
+        Adds annotations to a move.
+
+        :param node: The node representing the move to annotate.
+        :param comment: Optional comment for the move.
+        :param nags: List of NAGs (Numeric Annotation Glyphs) for the move.
+        """
+        try:
+            if comment:
+                node.comment = comment
+            for nag in nags:
+                node.nags.add(nag)
+        except Exception as e:
+            self.logger.error(f"Error annotating move: {e}")
+
+    def _add_evaluation_to_node(self, node, evaluation):
+        """
+        Adds an engine evaluation to a node.
+
+        :param node: The node to add the evaluation to.
+        :param evaluation: The evaluation score to add.
+        """
+        try:
+            score = evaluation.get("score")
+            depth = evaluation.get("depth", None)
+            node.set_eval(score, depth)
+        except Exception as e:
+            self.logger.error(f"Error adding evaluation to node: {e}")
+
+    def get_opening(self):
+        board = self.game.board()
+        moves_with_prefixes = []
+        move_count = 1  # Start with move number 1
+
+        for move in self.game.mainline_moves():
+            san_move = board.san(move)
+            # Add move number prefixes for each move (1.e4, 2.Nf3, etc.)
+            move_with_prefix = f"{move_count}.{san_move}" if board.turn == chess.WHITE else san_move
+            moves_with_prefixes.append(move_with_prefix)
+            # print(f"PGN move with prefix: {move_with_prefix}")
+            board.push(move)
+            if board.turn == chess.WHITE:
+                move_count += 1  # Increment move count after black's move
+
+        return self.opening_node.find_opening(moves_with_prefixes)
+
+    def _enhanced_get_opening(self):
+        """
+        Identifies the opening using the existing get_opening method and annotates the game tree.
+        """
+        try:
+            opening = self.get_opening()
+            if opening:
+                # Assuming 'opening' is a list of tuples with code and name
+                opening_code, opening_name = opening[0]  # Taking the first opening found
+                self.game.root().comment = f"Opening: {opening_code} - {opening_name}"
+                return opening
+            else:
+                print("Opening not found or not in the ECO book.")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error identifying opening: {e}")
+            return None
+        
     async def init_engine(self):
         if not self.engine:
             try:
@@ -208,15 +297,43 @@ class GameBoard:
             analysis_results.append({'score': adjusted_score, 'move': move})
 
         return analysis_results
-    
-    # def load_games_from_directory(self, directory_path="../games"):
-    #     all_games = []
-    #     pgn_files = glob.glob(os.path.join(directory_path, '*.pgn'))
-    #     for pgn_file_path in pgn_files:
-    #         with open(pgn_file_path, 'r') as pgn_file:
-    #             while True:
-    #                 game = chess.pgn.read_game(pgn_file)
-    #                 if game is None:
-    #                     break
-    #                 all_games.append(game)
-    #     return all_games
+
+# Usage
+sample_pgn = """
+[Event "Fictitious Game"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Player1"]
+[Black "Player2"]
+[Result "*"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6
+"""
+
+# opening_tree.print_opening_book()
+async def main():
+    game_board = GameBoard(engine_name="stockfish")
+    game_board.pgn_to_game(sample_pgn)
+    await game_board.init_engine()
+    analysis_results = await game_board.game_review(game_board.game)
+
+    # Print the results of the analysis
+    for result in analysis_results:
+        print(f"Move: {result['move']}, Score: {result['score']}")
+
+    # Close the engine
+    await game_board.close_engine()
+
+    opening = game_board.get_opening()
+
+    if opening:
+        for code, name in opening:
+            print(f"Opening: {code} - {name}")
+    else:
+        print("Opening not found or not in the ECO book.")
+
+    game_board.make_move("h2h3")
+
+if __name__ == "__main__":
+    asyncio.run(main())
