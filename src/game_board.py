@@ -4,6 +4,7 @@ import logging
 import chess
 import chess.engine
 import chess.pgn
+import random
 
 class OpeningNode:
     def __init__(self):
@@ -121,13 +122,30 @@ class GameBoard:
     def get_current_fen(self):
         return self.board.fen()
 
-    def make_move(self, uci_move):
-        """
-        Makes a move on the board.
+    def _get_current_node(self):
+        node = self.game
+        for move in self.board.move_stack:
+            for var in node.variations:
+                if var.move == move:
+                    node = var
+                    break
+        return node
 
-        :param uci_move: The move to make, in UCI format (e.g., 'g1f3').
-        :return: True if the move was successfully made, False otherwise.
-        """
+    def navigate_forward(self):
+        current_node = self._get_current_node()
+        if current_node.variations:
+            next_move = current_node.variations[0].move
+            self.board.push(next_move)
+            return next_move.uci()
+        return None
+
+    def navigate_backward(self):
+        if self.board.move_stack:
+            last_move = self.board.pop()
+            return last_move.uci()
+        return None
+
+    def make_move(self, uci_move):
         try:
             move = chess.Move.from_uci(uci_move)
             if move in self.board.legal_moves:
@@ -140,19 +158,28 @@ class GameBoard:
             self.logger.error(f"Error making move: {e}")
             return False
 
+    def make_move_with_variation(self, uci_move):
+        current_node = self._get_current_node()
+        move = chess.Move.from_uci(uci_move)
+
+        if move in [var.move for var in current_node.variations]:
+            self.board.push(move)
+        elif move not in self.board.legal_moves:
+            self.logger.warning(f"Illegal move: {uci_move}")
+            return False
+        else:
+            self._add_variation(current_node, uci_move)
+            self.board.push(move)
+        
+        # Restart the analysis with the new position
+        asyncio.create_task(self.restart_background_analysis())
+        return True
+
     def undo_move(self):
         if len(self.board.move_stack) > 0:
             self.board.pop()
 
     def _add_variation(self, current_node, move, comment=''):
-        """
-        Adds a new variation to the game tree.
-        
-        :param current_node: The node from which the variation starts.
-        :param move: The move (in UCI format) to add as a variation.
-        :param comment: Optional comment for the new variation.
-        :return: The new variation node.
-        """
         try:
             new_variation = current_node.add_variation(chess.Move.from_uci(move), comment=comment)
             return new_variation
@@ -161,23 +188,22 @@ class GameBoard:
             return None
         
     def _promote_variation(self, node):
-        """
-        Promotes the given variation to the main variation.
-
-        :param node: The node (variation) to promote.
-        """
         try:
             node.parent.promote(node.move)
         except Exception as e:
             self.logger.error(f"Error promoting variation: {e}")
 
-    def _navigate_to_node(self, path):
-        """
-        Navigates to a specific node in the game tree based on a list of moves.
+    def list_variations(self, node=None, depth=0):
+        if node is None:
+            node = self.game
 
-        :param path: List of moves (in UCI format) leading to the desired node.
-        :return: The node if found, otherwise None.
-        """
+        indent = " " * (2 * depth)
+        for variation in node.variations:
+            # print(f"{indent}Variation at depth {depth}: {variation.move.uci()}")
+            self.list_variations(variation, depth + 1)
+        return node.variations
+
+    def _navigate_to_node(self, path):
         current_node = self.game
         try:
             for move in path:
@@ -195,13 +221,6 @@ class GameBoard:
             return None
 
     def _annotate_move(self, node, comment='', nags=[]):
-        """
-        Adds annotations to a move.
-
-        :param node: The node representing the move to annotate.
-        :param comment: Optional comment for the move.
-        :param nags: List of NAGs (Numeric Annotation Glyphs) for the move.
-        """
         try:
             if comment:
                 node.comment = comment
@@ -211,12 +230,6 @@ class GameBoard:
             self.logger.error(f"Error annotating move: {e}")
 
     def _add_evaluation_to_node(self, node, evaluation):
-        """
-        Adds an engine evaluation to a node.
-
-        :param node: The node to add the evaluation to.
-        :param evaluation: The evaluation score to add.
-        """
         try:
             score = evaluation.get("score")
             depth = evaluation.get("depth", None)
@@ -240,24 +253,6 @@ class GameBoard:
                 move_count += 1  # Increment move count after black's move
 
         return self.opening_node.find_opening(moves_with_prefixes)
-
-    def _enhanced_get_opening(self):
-        """
-        Identifies the opening using the existing get_opening method and annotates the game tree.
-        """
-        try:
-            opening = self.get_opening()
-            if opening:
-                # Assuming 'opening' is a list of tuples with code and name
-                opening_code, opening_name = opening[0]  # Taking the first opening found
-                self.game.root().comment = f"Opening: {opening_code} - {opening_name}"
-                return opening
-            else:
-                print("Opening not found or not in the ECO book.")
-                return None
-        except Exception as e:
-            self.logger.error(f"Error identifying opening: {e}")
-            return None
         
     async def init_engine(self):
         if not self.engine:
@@ -298,6 +293,39 @@ class GameBoard:
 
         return analysis_results
 
+    async def start_background_analysis(self, depth=None):
+        self.background_analysis_task = asyncio.create_task(self._background_analysis(depth))
+
+    async def stop_background_analysis(self):
+        if self.background_analysis_task:
+            self.background_analysis_task.cancel()
+            await self.background_analysis_task
+
+    async def restart_background_analysis(self):
+        await self.stop_background_analysis()
+        await self.start_background_analysis()
+
+    async def _background_analysis(self, depth=21):
+        try:
+            with await self.engine.analysis(self.board, chess.engine.Limit(depth=depth)) as analysis:
+                async for info in analysis:
+                    # print("Received update from engine:", info)
+                    score = info.get("score")
+                    pv = info.get("pv")
+                    engine_depth = info.get("depth")
+                    if score is not None and pv is not None:
+                        print(f"Score: {score}, Depth: {engine_depth}")
+                    else:
+                        print("Waiting for engine analysis...")
+
+                    if depth and info.get("depth", 0) >= depth:
+                        break
+        except asyncio.CancelledError:
+            # Analysis was cancelled
+            pass
+        except Exception as e:
+            self.logger.error(f"Error in background analysis: {e}")
+
 # Usage
 sample_pgn = """
 [Event "Fictitious Game"]
@@ -308,7 +336,7 @@ sample_pgn = """
 [Black "Player2"]
 [Result "*"]
 
-1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 *
 """
 
 # opening_tree.print_opening_book()
@@ -316,14 +344,7 @@ async def main():
     game_board = GameBoard(engine_name="stockfish")
     game_board.pgn_to_game(sample_pgn)
     await game_board.init_engine()
-    analysis_results = await game_board.game_review(game_board.game)
-
-    # Print the results of the analysis
-    for result in analysis_results:
-        print(f"Move: {result['move']}, Score: {result['score']}")
-
-    # Close the engine
-    await game_board.close_engine()
+    await game_board.start_background_analysis(depth=21)
 
     opening = game_board.get_opening()
 
@@ -333,7 +354,55 @@ async def main():
     else:
         print("Opening not found or not in the ECO book.")
 
-    game_board.make_move("h2h3")
+    # Traverse to the end of the game
+    while game_board.navigate_forward():
+        pass
+
+    await asyncio.sleep(15)
+    move_in_san = "Bg5"
+    try:
+        move_in_uci = game_board.board.parse_san(move_in_san).uci()
+        if game_board.make_move_with_variation(move_in_uci):
+            current_node = game_board._get_current_node()
+            # game_board._promote_variation(current_node)
+        else:
+            print(f"Move {move_in_san} is not legal in the current position")
+    except ValueError:
+        print(f"Move {move_in_san} could not be parsed")
+
+    await asyncio.sleep(15)
+    move_in_san = "e6"
+    try:
+        move_in_uci = game_board.board.parse_san(move_in_san).uci()
+    except ValueError:
+        print(f"Move {move_in_san} could not be parsed")
+
+    await asyncio.sleep(5)
+    game_board.navigate_backward()
+    await asyncio.sleep(5)
+    game_board.navigate_backward()
+
+    legal_moves = list(game_board.board.legal_moves)
+    if legal_moves:
+        new_move = legal_moves[0]
+        game_board.make_move_with_variation(new_move.uci())
+    else:
+        print("No legal moves available")
+
+    mainline_moves = list(game_board.game.mainline_moves())
+    print("Mainline moves:", " ".join([move.uci() for move in mainline_moves]))
+
+    variations = game_board.list_variations()
+    for variation in variations:
+        print(variation)
+
+    # analysis_results = await game_board.game_review(game_board.game)
+    # for result in analysis_results:
+    #     print(f"Move: {result['move']}, Score: {result['score']}")
+
+    await asyncio.sleep(25)
+    await game_board.stop_background_analysis()
+    await game_board.close_engine()
 
 if __name__ == "__main__":
     asyncio.run(main())

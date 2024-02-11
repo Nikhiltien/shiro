@@ -7,7 +7,7 @@ import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import D3Tree from './D3Tree'; 
 
-function SidePanel() {
+function SidePanel({ flipBoard }) { 
   const [selectedTab, setSelectedTab] = useState(0);
 
   // Sample data for D3 tree
@@ -50,7 +50,7 @@ function SidePanel() {
       <Box display="flex" justifyContent="center" alignItems="center" p={1}>
         <IconButton size="small"><ReplayIcon /></IconButton>
         <IconButton size="small"><RotateLeftIcon /></IconButton>
-        <IconButton size="small"><FlipCameraAndroidIcon /></IconButton>
+        <IconButton size="small" onClick={flipBoard}><FlipCameraAndroidIcon /></IconButton>
         <IconButton size="small"><ForwardIcon /></IconButton>
         <IconButton size="small" color="primary"><PlayCircleOutlineIcon /></IconButton>
       </Box>

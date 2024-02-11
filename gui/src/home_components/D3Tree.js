@@ -2,13 +2,14 @@ import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 
 function D3Tree({ data }) {
-  const d3Container = useRef(null);
-
-  useEffect(() => {
-    if (data && d3Container.current) {
-      const margin = { top: 10, right: 120, bottom: 10, left: 40 },
-            width = 960 - margin.right - margin.left,
-            height = 500 - margin.top - margin.bottom;
+    const d3Container = useRef(null);
+  
+    useEffect(() => {
+      if (data && d3Container.current) {
+        const containerWidth = d3Container.current.getBoundingClientRect().width;
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 },
+              width = containerWidth - margin.left - margin.right,
+              height = 400 - margin.top - margin.bottom; 
 
       const tree = d3.tree().size([height, width]);
       const root = d3.hierarchy(data);

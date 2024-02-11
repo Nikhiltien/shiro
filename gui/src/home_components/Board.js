@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 
-function Board({ position, onPieceDrop }) {
+function Board({ position, onPieceDrop, orientation }) {
   const [lastInteraction, setLastInteraction] = useState('click');
 
   const handlePieceDrop = (sourceSquare, targetSquare, piece, newPos, oldPos, orientation) => {
@@ -18,14 +18,15 @@ function Board({ position, onPieceDrop }) {
     }
   };
 
-  console.log("Board component render with position:", position);
+  // console.log("Board component render with position:", position);
 
   return (
     <div style={{ maxWidth: '500px', margin: 'auto' }}>
       <Chessboard
         position={position}
         onPieceDrop={handlePieceDrop}
-        animationDuration={lastInteraction === 'drag' ? 0 : 300} // No animation on drag, default duration on click
+        animationDuration={lastInteraction === 'drag' ? 0 : 300}
+        orientation={orientation} // Use the orientation prop here
       />
     </div>
   );

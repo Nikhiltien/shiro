@@ -8,6 +8,11 @@ import { Grid } from '@mui/material';
 function Homepage() {
   const [boardPosition, setBoardPosition] = useState('start');
   const [initialFenLoaded, setInitialFenLoaded] = useState(false);
+  const [orientation, setOrientation] = useState('white'); // New state for board orientation
+  const flipBoard = () => {
+    setOrientation(orientation === 'white' ? 'black' : 'white');
+  };
+
   const websocket = useRef(null);
 
   useEffect(() => {
@@ -73,10 +78,15 @@ function Homepage() {
       <MenuBar />
       <Grid container spacing={2}>
         <Grid item xs={9}>
-          <Board key={initialFenLoaded ? 'initial-fen' : 'default'} position={boardPosition} onPieceDrop={onDrop} />
+          <Board
+            key={initialFenLoaded ? 'initial-fen' : 'default'}
+            position={boardPosition}
+            onPieceDrop={onDrop}
+            orientation={orientation} // Pass orientation to Board
+          />
         </Grid>
         <Grid item xs={3}>
-          <SidePanel />
+          <SidePanel flipBoard={flipBoard} />
         </Grid>
         <Grid item xs={12}>
           <BottomPanel />
