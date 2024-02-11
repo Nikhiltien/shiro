@@ -78,3 +78,4 @@ dist
 tmp
 temp
 src/__pycache__/app.cpython-311.pyc
+src/__pycache__/game_board.cpython-311.pyc
