@@ -1,4 +1,5 @@
 import io
+import asyncio
 import logging
 import chess
 import chess.engine
@@ -93,10 +94,17 @@ class OpeningNode:
             node.print_openings(move_sequence + ' ' + move)
 
 class GameBoard:
-    def __init__(self):
+    def __init__(self, engine_name=None):
         self.logger = logging.getLogger(__name__)
         self.game = chess.pgn.Game()
+        self.board = chess.Board()
         self.opening_node = OpeningNode().load_eco_book()
+
+        self.engine_path = f"engines/{engine_name}" if engine_name else None
+        self.engine = None
+        self.transport = None
+
+        self.reset_board()
 
     def pgn_to_game(self, pgn_string):
         try:
@@ -106,6 +114,108 @@ class GameBoard:
         except Exception as e:
             self.logger.error(f"Error parsing PGN string: {e}")
             return None
+
+    def reset_board(self):
+        self.board.reset()
+
+    def _make_move(self, uci_move):
+        """
+        Makes a move on the board.
+
+        :param uci_move: The move to make, in UCI format (e.g., 'g1f3').
+        :return: True if the move was successfully made, False otherwise.
+        """
+        try:
+            move = chess.Move.from_uci(uci_move)
+            if move in self.board.legal_moves:
+                self.board.push(move)
+                return True
+            else:
+                self.logger.warning(f"Illegal move: {uci_move}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error making move: {e}")
+            return False
+
+    def _add_variation(self, current_node, move, comment=''):
+        """
+        Adds a new variation to the game tree.
+        
+        :param current_node: The node from which the variation starts.
+        :param move: The move (in UCI format) to add as a variation.
+        :param comment: Optional comment for the new variation.
+        :return: The new variation node.
+        """
+        try:
+            new_variation = current_node.add_variation(chess.Move.from_uci(move), comment=comment)
+            return new_variation
+        except Exception as e:
+            self.logger.error(f"Error adding variation: {e}")
+            return None
+        
+    def _promote_variation(self, node):
+        """
+        Promotes the given variation to the main variation.
+
+        :param node: The node (variation) to promote.
+        """
+        try:
+            node.parent.promote(node.move)
+        except Exception as e:
+            self.logger.error(f"Error promoting variation: {e}")
+
+    def _navigate_to_node(self, path):
+        """
+        Navigates to a specific node in the game tree based on a list of moves.
+
+        :param path: List of moves (in UCI format) leading to the desired node.
+        :return: The node if found, otherwise None.
+        """
+        current_node = self.game
+        try:
+            for move in path:
+                found = False
+                for variation in current_node.variations:
+                    if variation.move == chess.Move.from_uci(move):
+                        current_node = variation
+                        found = True
+                        break
+                if not found:
+                    return None
+            return current_node
+        except Exception as e:
+            self.logger.error(f"Error navigating to node: {e}")
+            return None
+
+    def _annotate_move(self, node, comment='', nags=[]):
+        """
+        Adds annotations to a move.
+
+        :param node: The node representing the move to annotate.
+        :param comment: Optional comment for the move.
+        :param nags: List of NAGs (Numeric Annotation Glyphs) for the move.
+        """
+        try:
+            if comment:
+                node.comment = comment
+            for nag in nags:
+                node.nags.add(nag)
+        except Exception as e:
+            self.logger.error(f"Error annotating move: {e}")
+
+    def _add_evaluation_to_node(self, node, evaluation):
+        """
+        Adds an engine evaluation to a node.
+
+        :param node: The node to add the evaluation to.
+        :param evaluation: The evaluation score to add.
+        """
+        try:
+            score = evaluation.get("score")
+            depth = evaluation.get("depth", None)
+            node.set_eval(score, depth)
+        except Exception as e:
+            self.logger.error(f"Error adding evaluation to node: {e}")
 
     def get_opening(self):
         board = self.game.board()
@@ -124,6 +234,62 @@ class GameBoard:
 
         return self.opening_node.find_opening(moves_with_prefixes)
 
+    def _enhanced_get_opening(self):
+        """
+        Identifies the opening using the existing get_opening method and annotates the game tree.
+        """
+        try:
+            opening = self.get_opening()
+            if opening:
+                # Assuming 'opening' is a list of tuples with code and name
+                opening_code, opening_name = opening[0]  # Taking the first opening found
+                self.game.root().comment = f"Opening: {opening_code} - {opening_name}"
+                return opening
+            else:
+                print("Opening not found or not in the ECO book.")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error identifying opening: {e}")
+            return None
+        
+    async def init_engine(self):
+        if not self.engine:
+            try:
+                self.logger.info("Initializing chess engine")
+                transport, engine = await chess.engine.popen_uci(self.engine_path)
+                self.engine = engine
+                self.transport = transport
+                self.logger.info("Engine initialized")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize chess engine: {e}")
+                raise
+
+    async def close_engine(self):
+        if self.engine:
+            await self.engine.quit()
+            self.engine = None
+        if self.transport:
+            self.transport.close()
+            self.transport = None
+
+    async def board_eval(self, position_fen):
+        self.board.set_fen(position_fen)
+        info = await self.engine.analyse(self.board, chess.engine.Limit(depth=20))
+        return info
+
+    async def game_review(self, game):
+        analysis_results = []
+
+        board = game.board()
+
+        for move in game.mainline_moves():
+            board.push(move)
+            info = await self.engine.analyse(board, chess.engine.Limit(depth=18))
+
+            adjusted_score = info['score'].white() if board.turn == chess.BLACK else -info['score'].black()
+            analysis_results.append({'score': adjusted_score, 'move': move})
+
+        return analysis_results
 
 # Usage
 sample_pgn = """
@@ -135,17 +301,30 @@ sample_pgn = """
 [Black "Player2"]
 [Result "*"]
 
-1. e4 e5 2. Nf3 Nc6 3. Bb5
+1. e4 e5 2. Bc4 Nc6 3. Qh5 a6
 """
 
 # opening_tree.print_opening_book()
+async def main():
+    game_board = GameBoard(engine_name="stockfish")
+    game_board.pgn_to_game(sample_pgn)
+    await game_board.init_engine()
+    analysis_results = await game_board.game_review(game_board.game)
 
-game_board = GameBoard()
-game_board.pgn_to_game(sample_pgn)
-opening = game_board.get_opening()
+    # Print the results of the analysis
+    for result in analysis_results:
+        print(f"Move: {result['move']}, Score: {result['score']}")
 
-if opening:
-    for code, name in opening:
-        print(f"Opening: {code} - {name}")
-else:
-    print("Opening not found or not in the ECO book.")
+    # Close the engine
+    await game_board.close_engine()
+
+    opening = game_board.get_opening()
+
+    if opening:
+        for code, name in opening:
+            print(f"Opening: {code} - {name}")
+    else:
+        print("Opening not found or not in the ECO book.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
