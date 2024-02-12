@@ -8,12 +8,13 @@ import { Grid } from '@mui/material';
 function Homepage() {
   const [boardPosition, setBoardPosition] = useState('start');
   const [initialFenLoaded, setInitialFenLoaded] = useState(false);
-  const [orientation, setOrientation] = useState('white'); // New state for board orientation
+  const [orientation, setOrientation] = useState('white');
+  const [gameTree, setGameTree] = useState(null);
+  const websocket = useRef(null);
+
   const flipBoard = () => {
     setOrientation(orientation === 'white' ? 'black' : 'white');
   };
-
-  const websocket = useRef(null);
 
   useEffect(() => {
     const fetchCurrentFen = async () => {
@@ -23,11 +24,8 @@ function Homepage() {
         console.log("Fetched FEN:", data.fen);
         if (data.fen) {
           console.log("Current board position before setting:", boardPosition);
-          if (!initialFenLoaded) {
-            setBoardPosition(data.fen);
-            setInitialFenLoaded(true);
-            console.log("Board position set to:", data.fen);
-          }
+          setBoardPosition(data.fen);
+          setInitialFenLoaded(true);
         } else {
           console.error('Failed to fetch current FEN:', data.error);
         }
@@ -37,34 +35,35 @@ function Homepage() {
     };
 
     fetchCurrentFen();
+  }, []);
 
+  useEffect(() => {
     websocket.current = new WebSocket('ws://localhost:5000/ws');
+
     websocket.current.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (data.fen) {
-          // Update the board position only if a valid FEN is received
-          setBoardPosition(data.fen);
-        } else if (data.error) {
-          // Handle illegal move or other errors (optional)
-          console.error('Illegal move or error:', data.error);
-          // Optionally display error message to the user
-        }
-      };
-  
+      const data = JSON.parse(event.data);
+      // console.log("Received data from WebSocket:", event.data);
+      if (data.fen) {
+        setBoardPosition(data.fen);
+      } else if (data.game_tree) {
+        setGameTree(JSON.parse(data.game_tree)); // Update the game tree data
+      } else if (data.error) {
+        console.error('Illegal move or error:', data.error);
+      }
+    };
 
     websocket.current.onerror = function(event) {
       console.error("WebSocket error observed:", event);
     };
 
     return () => {
-        if (websocket.current) {
-          websocket.current.close();
-        }
-      };
-    }, [boardPosition, initialFenLoaded]);
+      if (websocket.current) {
+        websocket.current.close();
+      }
+    };
+  }, []); // Empty dependency array to ensure this runs only once on mount
 
   const onDrop = (sourceSquare, targetSquare) => {
-    // Send move to backend and wait for confirmation before updating board
     const move = sourceSquare + targetSquare;
     if (move && websocket.current) {
       websocket.current.send(JSON.stringify({ move }));
@@ -82,11 +81,11 @@ function Homepage() {
             key={initialFenLoaded ? 'initial-fen' : 'default'}
             position={boardPosition}
             onPieceDrop={onDrop}
-            orientation={orientation} // Pass orientation to Board
+            orientation={orientation}
           />
         </Grid>
         <Grid item xs={3}>
-          <SidePanel flipBoard={flipBoard} />
+          <SidePanel flipBoard={flipBoard} gameTree={gameTree} />
         </Grid>
         <Grid item xs={12}>
           <BottomPanel />

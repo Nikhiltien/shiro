@@ -5,8 +5,18 @@ from quart_cors import cors
 
 app = Quart(__name__)
 cors(app, allow_origin="http://localhost:3000")  # Apply CORS settings
+active_websockets = set()
 
-games = {"default": GameBoard()}  # Pre-initialize the default game
+async def game_tree_callback(new_tree):
+    for ws in active_websockets:
+        try:
+            print(new_tree)
+            await ws.send(json.dumps({'game_tree': new_tree}))
+        except Exception as e:
+            # Handle exceptions, e.g., closed connections
+            pass
+
+games = {"default": GameBoard(engine_name="stockfish", callback=game_tree_callback)}  # Pre-initialize the default game
 
 @app.route('/')
 async def index():
@@ -17,18 +27,24 @@ async def ws():
     game_id = 'default'  # Using a fixed game ID for simplification
     game = games[game_id]
 
+    ws = websocket._get_current_object()
+    active_websockets.add(ws)
+
     # Send the current board state immediately upon WebSocket connection
     await websocket.send(json.dumps({'fen': game.get_current_fen()}))
 
-    while True:
-        data = await websocket.receive()
-        move_data = json.loads(data)
-        
-        is_legal = game.make_move_with_variation(move_data.get('move'))
-        if is_legal:
-            await websocket.send(json.dumps({'fen': game.get_current_fen()}))
-        else:
-            await websocket.send(json.dumps({'error': 'Illegal move'}))
+    try:
+        while True:
+            data = await websocket.receive()
+            move_data = json.loads(data)
+            
+            is_legal = game.make_move_with_variation(move_data.get('move'))
+            if is_legal:
+                await websocket.send(json.dumps({'fen': game.get_current_fen()}))
+            else:
+                await websocket.send(json.dumps({'error': 'Illegal move'}))
+    finally:
+        active_websockets.remove(ws)
 
 @app.route('/current_fen')
 async def current_fen():

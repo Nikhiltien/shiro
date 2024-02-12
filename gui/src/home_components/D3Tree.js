@@ -1,33 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 
-function parseMoves(moves) {
-    if (!moves) {
-        return { name: "Start", children: [] }; // Return a default structure if moves is not provided
-    }
-
-    const moveList = moves.split(/\d+\./).map(move => move.trim()).filter(move => move);
-    const root = { name: "Start", children: [] };
-    let currentNode = root;
-
-    moveList.forEach(move => {
-        const variations = move.split(/\(\s*|\s*\)/).map(variation => variation.trim()).filter(variation => variation);
-        const mainMove = variations.shift(); // First element is the main move
-
-        currentNode.children = [{ name: mainMove }];
-        currentNode = currentNode.children[0]; // Move to the new main move node
-
-        variations.forEach(variation => {
-            if (!currentNode.children) {
-                currentNode.children = [];
-            }
-            currentNode.children.push({ name: variation });
-        });
-    });
-
-    return root;
-}
-
 function D3Tree({ moves }) {
     const d3Container = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -40,6 +13,7 @@ function D3Tree({ moves }) {
                 width: rect.width,
                 height: rect.height
             });
+            // console.log("Updated dimensions:", rect.width, rect.height);
         }
     };
 
@@ -54,15 +28,19 @@ function D3Tree({ moves }) {
     }, []);
 
     useEffect(() => {
-        const data = parseMoves(moves);
-        if (data && d3Container.current && dimensions.width && dimensions.height) {
+        // console.log("Received moves data:", moves);
+        if (moves && d3Container.current && dimensions.width && dimensions.height) {
             const margin = { top: 20, right: 20, bottom: 20, left: 20 },
                   width = dimensions.width - margin.left - margin.right,
                   height = dimensions.height - margin.top - margin.bottom; 
 
+            // console.log("Setting up tree with dimensions:", width, height);
+
             const tree = d3.tree().size([height, width]);
-            const root = d3.hierarchy(data);
+            const root = d3.hierarchy(moves);
             tree(root);
+
+            // console.log("D3 hierarchy root:", root);
 
             d3.select(d3Container.current).selectAll("*").remove(); // Clear the container first
 
@@ -84,19 +62,14 @@ function D3Tree({ moves }) {
               .call(zoom)
               .call(zoom.transform, d3.zoomIdentity); // Set initial zoom state
 
-            // Create the links between the nodes
-            const links = svg.selectAll('.link')
-                             .data(root.descendants().slice(1))
-                             .enter().append('path')
-                             .attr('class', 'link')
-                             .attr('d', d => `M${d.y},${d.x}C${(d.y + d.parent.y) / 2},${d.x} ${(d.y + d.parent.y) / 2},${d.parent.x} ${d.parent.y},${d.parent.x}`);
-
             // Create the node circles
             const nodes = svg.selectAll('.node')
                              .data(root.descendants())
                              .enter().append('g')
                              .attr('class', d => `node${d.children ? ' node--internal' : ' node--leaf'}`)
                              .attr('transform', d => `translate(${d.y},${d.x})`);
+
+            // console.log("Nodes data:", nodes);
 
             nodes.append('circle')
                  .attr('r', 10);
@@ -106,12 +79,16 @@ function D3Tree({ moves }) {
                  .attr('x', d => d.children ? -13 : 13)
                  .style('text-anchor', d => d.children ? 'end' : 'start')
                  .text(d => d.data.name);
-                }
-            }, [moves, dimensions]);
-        
-            return (
-                <div ref={d3Container} style={{ width: '100%', height: '100%' }} />
-            );
-        }
-        
-        export default D3Tree;
+
+            // console.log("SVG after nodes and text:", d3Container.current.innerHTML);
+        } // else {
+        //     console.log("Data, container, or dimensions not valid.");
+        // }
+    }, [moves, dimensions]);
+    
+    return (
+        <div ref={d3Container} style={{ width: '100%', height: '100%' }} />
+    );
+}
+
+export default D3Tree;

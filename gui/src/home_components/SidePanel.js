@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Paper, Tabs, Tab, Box, IconButton, Divider } from '@mui/material';
 import ForwardIcon from '@mui/icons-material/Forward';
 import ReplayIcon from '@mui/icons-material/Replay';
@@ -7,18 +7,12 @@ import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import D3Tree from './D3Tree'; 
 
-function SidePanel({ flipBoard }) { 
+function SidePanel({ flipBoard, gameTree }) {
   const [selectedTab, setSelectedTab] = useState(0);
 
-  // Sample data for D3 tree
-  const sampleData = {
-    name: "Root",
-    children: [
-      { name: "Child 1" },
-      { name: "Child 2" },
-      // ... more children
-    ],
-  };
+  // useEffect(() => {
+  //   console.log("Current gameTree data in SidePanel:", gameTree);
+  // }, [gameTree]);
 
   const handleChange = (event, newValue) => {
     setSelectedTab(newValue);
@@ -43,7 +37,7 @@ function SidePanel({ flipBoard }) {
       <Divider />
 
       <Box p={2} flexGrow={1}>
-        {selectedTab === 1 && <D3Tree data={sampleData} />}
+        {selectedTab === 1 && <D3Tree moves={gameTree} />}
         {/* Render D3Tree component when Game Tree tab is selected */}
       </Box>
 

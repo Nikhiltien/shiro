@@ -1,11 +1,13 @@
 import io
+import random
+import json
+import hashlib
 import copy
 import asyncio
 import logging
 import chess
 import chess.engine
 import chess.pgn
-import random
 
 class OpeningNode:
     def __init__(self):
@@ -97,9 +99,9 @@ class OpeningNode:
 
 
 class GameBoard:
-    def __init__(self, engine_name=None):
+    def __init__(self, engine_name=None, callback=None):
         self.logger = logging.getLogger(__name__)
-        self.game = chess.pgn.Game()
+        self.game = None
         self.board = chess.Board()
         self.opening_node = OpeningNode().load_eco_book()
 
@@ -107,6 +109,9 @@ class GameBoard:
         self.engine = None
         self.transport = None
 
+        self.background_analysis_task = None
+        self.prev_state_hash = None
+        self.state_callback = callback
         self.reset_board()
 
     def pgn_to_game(self, pgn_string):
@@ -120,6 +125,24 @@ class GameBoard:
 
     def reset_board(self):
         self.board.reset()
+        self.game = chess.pgn.Game()
+        self.prev_state_hash = self._generate_state_hash()
+
+    def _generate_state_hash(self):
+        # Generate a hash of the current game tree
+        game_tree = self.list_variations()
+        game_tree_string = json.dumps(game_tree)  # Convert the dict to a JSON string
+        # return hashlib.sha256(game_tree_string.encode()).hexdigest()
+        return game_tree_string
+
+    def has_state_changed(self):
+        # Check if the current game state is different from the previous state
+        current_state_hash = self._generate_state_hash()
+        if current_state_hash != self.prev_state_hash:
+            self.prev_state_hash = current_state_hash
+            return current_state_hash
+        else:
+            return False
 
     def get_current_fen(self):
         return self.board.fen()
@@ -166,15 +189,21 @@ class GameBoard:
 
         if move in [var.move for var in current_node.variations]:
             self.board.push(move)
+            new_state = self.has_state_changed()
+            if new_state and self.state_callback is not None:
+                asyncio.create_task(self.state_callback(new_state))
         elif move not in self.board.legal_moves:
             self.logger.warning(f"Illegal move: {uci_move}")
             return False
         else:
             self._add_variation(current_node, uci_move)
             self.board.push(move)
+            new_state = self.has_state_changed()
+            if new_state and self.state_callback is not None:
+                asyncio.create_task(self.state_callback(new_state))
         
-        # Restart the analysis with the new position
-        asyncio.create_task(self.restart_background_analysis())
+        if self.background_analysis_task:
+            asyncio.create_task(self.restart_background_analysis())
         return True
 
     def undo_move(self):
@@ -330,7 +359,7 @@ class GameBoard:
 
         return analysis_results
 
-    async def start_background_analysis(self, depth=None):
+    async def start_background_analysis(self, depth=20):
         self.background_analysis_task = asyncio.create_task(self._background_analysis(depth))
 
     async def stop_background_analysis(self):
@@ -342,7 +371,7 @@ class GameBoard:
         await self.stop_background_analysis()
         await self.start_background_analysis()
 
-    async def _background_analysis(self, depth=21):
+    async def _background_analysis(self, depth=20):
         try:
             with await self.engine.analysis(self.board, chess.engine.Limit(depth=depth)) as analysis:
                 async for info in analysis:
@@ -376,12 +405,16 @@ sample_pgn = """
 1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 *
 """
 
+
+def callback(game_tree):
+    print(game_tree)
+
 # opening_tree.print_opening_book()
 async def main():
-    game_board = GameBoard(engine_name="stockfish")
+    game_board = GameBoard(engine_name="stockfish", callback=callback)
     game_board.pgn_to_game(sample_pgn)
     await game_board.init_engine()
-    await game_board.start_background_analysis(depth=21)
+    await game_board.start_background_analysis(depth=20)
 
     opening = game_board.get_opening()
 
