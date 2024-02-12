@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Paper, Tabs, Tab, Box, IconButton, Divider } from '@mui/material';
 import ForwardIcon from '@mui/icons-material/Forward';
 import ReplayIcon from '@mui/icons-material/Replay';
@@ -9,10 +9,6 @@ import D3Tree from './D3Tree';
 
 function SidePanel({ flipBoard, gameTree }) {
   const [selectedTab, setSelectedTab] = useState(0);
-
-  // useEffect(() => {
-  //   console.log("Current gameTree data in SidePanel:", gameTree);
-  // }, [gameTree]);
 
   const handleChange = (event, newValue) => {
     setSelectedTab(newValue);

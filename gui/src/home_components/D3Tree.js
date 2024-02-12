@@ -28,63 +28,66 @@ function D3Tree({ moves }) {
     }, []);
 
     useEffect(() => {
-        // console.log("Received moves data:", moves);
         if (moves && d3Container.current && dimensions.width && dimensions.height) {
-            const margin = { top: 20, right: 20, bottom: 20, left: 20 },
+            const margin = { top: 50, right: 120, bottom: 50, left: 120 },
                   width = dimensions.width - margin.left - margin.right,
-                  height = dimensions.height - margin.top - margin.bottom; 
-
-            // console.log("Setting up tree with dimensions:", width, height);
-
-            const tree = d3.tree().size([height, width]);
-            const root = d3.hierarchy(moves);
+                  height = dimensions.height - margin.top - margin.bottom;
+    
+            const tree = d3.tree().size([width, height]);
+            const root = d3.hierarchy(moves, d => d.children);
             tree(root);
-
-            // console.log("D3 hierarchy root:", root);
-
-            d3.select(d3Container.current).selectAll("*").remove(); // Clear the container first
-
+    
+            d3.select(d3Container.current).selectAll("*").remove();
+    
             const svg = d3.select(d3Container.current)
                           .append('svg')
-                          .attr('width', width + margin.right + margin.left)
+                          .attr('width', width + margin.left + margin.right)
                           .attr('height', height + margin.top + margin.bottom)
                           .append('g')
                           .attr('transform', `translate(${margin.left},${margin.top})`);
-
-            // Add zoom functionality
+    
             const zoom = d3.zoom()
-                           .scaleExtent([0.5, 2]) // Limit the zoom scale
+                           .scaleExtent([0.5, 2])
                            .on('zoom', (event) => {
                              svg.attr('transform', event.transform);
                            });
-            
+    
             d3.select(d3Container.current).select('svg')
               .call(zoom)
-              .call(zoom.transform, d3.zoomIdentity); // Set initial zoom state
+              .call(zoom.transform, d3.zoomIdentity);
+    
+            // Draw links (lines)
+            const link = svg.selectAll(".link")
+                            .data(root.links())
+                            .enter().append("path")
+                            .attr("class", "link")
+                            .attr("d", d3.linkVertical()
+                                        .x(d => d.x)
+                                        .y(d => d.y))
+                            .style("stroke", "#555") // Stroke color
+                            .style("stroke-width", "1.5px") // Stroke width
+                            .style("fill", "none"); // No fill
 
-            // Create the node circles
+    
+            // Draw nodes
             const nodes = svg.selectAll('.node')
                              .data(root.descendants())
                              .enter().append('g')
-                             .attr('class', d => `node${d.children ? ' node--internal' : ' node--leaf'}`)
-                             .attr('transform', d => `translate(${d.y},${d.x})`);
-
-            // console.log("Nodes data:", nodes);
-
+                             .attr('class', 'node')
+                             .attr('transform', d => `translate(${d.x},${d.y})`);
+    
             nodes.append('circle')
                  .attr('r', 10);
-
+    
             nodes.append('text')
-                 .attr('dy', '.35em')
-                 .attr('x', d => d.children ? -13 : 13)
-                 .style('text-anchor', d => d.children ? 'end' : 'start')
+                 .attr('dy', '0.35em')
+                 .attr('x', d => d.children && d.children.length > 0 ? -13 : 13)
+                 .style('text-anchor', d => d.children && d.children.length > 0 ? 'end' : 'start')
                  .text(d => d.data.name);
-
-            // console.log("SVG after nodes and text:", d3Container.current.innerHTML);
-        } // else {
-        //     console.log("Data, container, or dimensions not valid.");
-        // }
+        }
     }, [moves, dimensions]);
+    
+    
     
     return (
         <div ref={d3Container} style={{ width: '100%', height: '100%' }} />
