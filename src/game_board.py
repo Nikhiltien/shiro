@@ -1,4 +1,5 @@
 import io
+import copy
 import asyncio
 import logging
 import chess
@@ -94,6 +95,7 @@ class OpeningNode:
             # print(f"Child node move: {move}")
             node.print_openings(move_sequence + ' ' + move)
 
+
 class GameBoard:
     def __init__(self, engine_name=None):
         self.logger = logging.getLogger(__name__)
@@ -145,7 +147,7 @@ class GameBoard:
             return last_move.uci()
         return None
 
-    def make_move(self, uci_move):
+    def _make_move(self, uci_move):
         try:
             move = chess.Move.from_uci(uci_move)
             if move in self.board.legal_moves:
@@ -193,15 +195,50 @@ class GameBoard:
         except Exception as e:
             self.logger.error(f"Error promoting variation: {e}")
 
-    def list_variations(self, node=None, depth=0):
+    def list_variations(self, node=None, depth=0, variation_lines=None):
+        if variation_lines is None:
+            variation_lines = []
+        
         if node is None:
             node = self.game
 
         indent = " " * (2 * depth)
         for variation in node.variations:
-            # print(f"{indent}Variation at depth {depth}: {variation.move.uci()}")
-            self.list_variations(variation, depth + 1)
-        return node.variations
+            variation_line = f"{indent}Variation at depth {depth}: {variation.move.uci()}"
+            variation_lines.append(variation_line)
+            self.list_variations(variation, depth + 1, variation_lines)
+
+        # Only return the result at the root call
+        if depth == 0:
+            return self._parse_to_tree(variation_lines)
+
+    @staticmethod
+    def _parse_to_tree(variation_lines):
+        variation_string = "\n".join(variation_lines)  # Join the list into a single string
+        lines = variation_string.split('\n')
+        root = {'name': 'Start', 'children': []}
+        stack = [root]
+
+        for line in lines:
+            if not line.strip():
+                continue
+
+            depth = line.count('  ')
+            move_san = line.split(': ')[-1]
+            
+            node = {'name': move_san, 'children': []}
+
+            # Move back up to the parent node at the correct depth
+            while len(stack) > depth + 1:
+                stack.pop()
+            
+            # Add the new node to the children of the current node
+            stack[-1]['children'].append(node)
+
+            # Add this node to the stack
+            stack.append(node)
+
+        return root
 
     def _navigate_to_node(self, path):
         current_node = self.game
@@ -316,7 +353,7 @@ class GameBoard:
                     if score is not None and pv is not None:
                         print(f"Score: {score}, Depth: {engine_depth}")
                     else:
-                        print("Waiting for engine analysis...")
+                        self.logger.debug("Waiting for engine analysis...")
 
                     if depth and info.get("depth", 0) >= depth:
                         break
@@ -393,14 +430,13 @@ async def main():
     print("Mainline moves:", " ".join([move.uci() for move in mainline_moves]))
 
     variations = game_board.list_variations()
-    for variation in variations:
-        print(variation)
+    print(variations)
 
     # analysis_results = await game_board.game_review(game_board.game)
     # for result in analysis_results:
     #     print(f"Move: {result['move']}, Score: {result['score']}")
 
-    await asyncio.sleep(25)
+    await asyncio.sleep(5)
     await game_board.stop_background_analysis()
     await game_board.close_engine()
 

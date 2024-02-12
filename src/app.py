@@ -24,7 +24,7 @@ async def ws():
         data = await websocket.receive()
         move_data = json.loads(data)
         
-        is_legal = game.make_move(move_data.get('move'))
+        is_legal = game.make_move_with_variation(move_data.get('move'))
         if is_legal:
             await websocket.send(json.dumps({'fen': game.get_current_fen()}))
         else:

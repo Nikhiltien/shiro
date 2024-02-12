@@ -57,11 +57,11 @@ function Homepage() {
     };
 
     return () => {
-      if (websocket.current) {
-        websocket.current.close();
-      }
-    };
-  }, []);
+        if (websocket.current) {
+          websocket.current.close();
+        }
+      };
+    }, [boardPosition, initialFenLoaded]);
 
   const onDrop = (sourceSquare, targetSquare) => {
     // Send move to backend and wait for confirmation before updating board
