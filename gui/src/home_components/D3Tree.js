@@ -70,7 +70,7 @@ function updateTree(data, svg, treeLayout, dimensions, margin) {
     const root = d3.hierarchy(data, d => d.children);
 
     // Use dimensions and margin here
-    treeLayout.size([dimensions.width - margin.left - margin.right, dimensions.height - margin.top - margin.bottom]);
+    treeLayout.size([dimensions.height - margin.left - margin.right, dimensions.width - margin.bottom - margin.top]);
 
     treeLayout(root);
 

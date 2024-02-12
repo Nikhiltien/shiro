@@ -72,6 +72,34 @@ function Homepage() {
     }
   };
 
+  const navigateForward = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/navigate_forward', { method: 'POST' });
+      const data = await response.json();
+      if (data.fen) {
+        setBoardPosition(data.fen);
+      } else {
+        console.error('Error in navigating forward:', data.error);
+      }
+    } catch (error) {
+      console.error('Error in navigating forward:', error);
+    }
+  };
+  
+  const navigateBackward = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/navigate_backward', { method: 'POST' });
+      const data = await response.json();
+      if (data.fen) {
+        setBoardPosition(data.fen);
+      } else {
+        console.error('Error in navigating backward:', data.error);
+      }
+    } catch (error) {
+      console.error('Error in navigating backward:', error);
+    }
+  };  
+
   return (
     <div>
       <MenuBar />
@@ -85,7 +113,12 @@ function Homepage() {
           />
         </Grid>
         <Grid item xs={3}>
-          <SidePanel flipBoard={flipBoard} gameTree={gameTree} />
+          <SidePanel
+            flipBoard={flipBoard}
+            gameTree={gameTree}
+            onNavigateForward={navigateForward}
+            onNavigateBackward={navigateBackward}
+            />
         </Grid>
         <Grid item xs={12}>
           <BottomPanel />
