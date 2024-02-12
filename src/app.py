@@ -16,7 +16,11 @@ async def game_tree_callback(new_tree):
             # Handle exceptions, e.g., closed connections
             pass
 
-games = {"default": GameBoard(engine_name="stockfish", callback=game_tree_callback)}  # Pre-initialize the default game
+games = {} # {"default": GameBoard(engine_name="stockfish", callback=game_tree_callback)}  # Pre-initialize the default game
+
+@app.before_serving
+async def initialize_games():
+    games["default"] = GameBoard(engine_name="stockfish", callback=game_tree_callback)
 
 @app.route('/')
 async def index():

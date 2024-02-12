@@ -114,6 +114,9 @@ class GameBoard:
         self.state_callback = callback
         self.reset_board()
 
+        if self.engine_path:
+            asyncio.create_task(self.init_engine())
+
     def pgn_to_game(self, pgn_string):
         try:
             pgn_io = io.StringIO(pgn_string)
@@ -129,7 +132,6 @@ class GameBoard:
         self.prev_state_hash = self._generate_state_hash()
 
     def _generate_state_hash(self):
-        # Generate a hash of the current game tree
         game_tree = self.list_variations()
         game_tree_string = json.dumps(game_tree)  # Convert the dict to a JSON string
         # return hashlib.sha256(game_tree_string.encode()).hexdigest()

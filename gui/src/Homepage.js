@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Board from './home_components/Board';
+import EvaluationBar from './home_components/EvaluationBar';
 import MenuBar from './home_components/MenuBar';
 import SidePanel from './home_components/SidePanel';
 import BottomPanel from './home_components/BottomPanel';
@@ -10,6 +11,7 @@ function Homepage() {
   const [initialFenLoaded, setInitialFenLoaded] = useState(false);
   const [orientation, setOrientation] = useState('white');
   const [gameTree, setGameTree] = useState(null);
+  const [evaluationScore, setEvaluationScore] = useState(0);
   const websocket = useRef(null);
 
   const flipBoard = () => {
@@ -104,7 +106,10 @@ function Homepage() {
     <div>
       <MenuBar />
       <Grid container spacing={2}>
-        <Grid item xs={9}>
+      {/* <Grid item xs={2}>
+          <EvaluationBar />
+        </Grid> */}
+        <Grid item xs={7}>
           <Board
             key={initialFenLoaded ? 'initial-fen' : 'default'}
             position={boardPosition}

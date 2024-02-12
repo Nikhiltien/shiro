@@ -103,6 +103,7 @@ function updateTree(data, svg, treeLayout, dimensions, margin) {
         .attr('r', 5);
 
     nodeUpdate.select('text')
+        .style('font-size', '4px')
         .text(d => d.data.name);
 
     // Remove any exiting nodes
