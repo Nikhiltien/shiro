@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import { initializeTree, updateNodes, updateLinks } from './d3TreeHelpers';
+import { initializeTree } from './d3TreeHelpers';
 
 function D3Tree({ moves }) {
     const d3Container = useRef(null);
-    const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
+    const [dimensions, setDimensions] = useState({ width: 300, height: 400 });
 
     // Debounced resize listener
     useEffect(() => {
@@ -30,7 +30,9 @@ function D3Tree({ moves }) {
                           .selectAll('svg')
                           .data([null]);
             const svgEnter = svg.enter().append('svg')
-                              .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+                          .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
+                          .attr("font-family", "sans-serif")
+                          .attr("font-size", 10);
 
             // Create or select the 'g' element which will contain the tree
             const g = svgEnter.append('g')
