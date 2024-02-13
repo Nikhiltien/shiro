@@ -124,15 +124,16 @@ function Homepage() {
           {/* SidePanel with padding */}
           <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', minHeight: '600px' }}>
             <SidePanel
-              flipBoard={flipBoard}
               gameTree={gameTree}
-              onNavigateForward={navigateForward}
-              onNavigateBackward={navigateBackward}
             />
           </Box>
         </Box>
         <Box sx={{ flexGrow: 1 }}>
-          <BottomPanel />
+          <BottomPanel
+            flipBoard={flipBoard}
+            onNavigateForward={navigateForward}
+            onNavigateBackward={navigateBackward}
+          />
         </Box>
       </Box>
     </Box>

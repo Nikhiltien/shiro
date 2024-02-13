@@ -22,7 +22,7 @@ const rows = [
   // Add more rows as needed
 ];
 
-function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward }) {
+function SidePanel({ gameTree }) {
   const [selectedTab, setSelectedTab] = useState(0);
 
   const handleChange = (event, newValue) => {
@@ -93,14 +93,6 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
         )}
         {selectedTab === 1 && <D3Tree moves={gameTree} />}
         {/* Render D3Tree component when Game Tree tab is selected */}
-      </Box>
-
-      <Box display="flex" justifyContent="center" alignItems="center" p={1}>
-        <IconButton size="small"><ReplayIcon /></IconButton>
-        <IconButton size="small" onClick={onNavigateBackward}><RotateLeftIcon /></IconButton>
-        <IconButton size="small" onClick={flipBoard}><FlipCameraAndroidIcon /></IconButton>
-        <IconButton size="small" onClick={onNavigateForward}><ForwardIcon /></IconButton>
-        <IconButton size="small" color="primary"><PlayCircleOutlineIcon /></IconButton>
       </Box>
     </Paper>
   );
