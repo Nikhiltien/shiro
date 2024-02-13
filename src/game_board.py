@@ -164,12 +164,16 @@ class GameBoard:
         if current_node.variations:
             next_move = current_node.variations[0].move
             self.board.push(next_move)
+            if self.background_analysis_task:
+                asyncio.create_task(self.restart_background_analysis())
             return next_move.uci()
         return None
 
     def navigate_backward(self):
         if self.board.move_stack:
             last_move = self.board.pop()
+            if self.background_analysis_task:
+                asyncio.create_task(self.restart_background_analysis())
             return last_move.uci()
         return None
 

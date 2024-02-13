@@ -27,9 +27,10 @@ async def eval_callback(value):
                 # Handling 'Mate' scores
                 if "Mate" in score:
                     mate_value = score.split('(')[1].split(')')[0]
-                    if mate_value.lstrip("-").isdigit():
-                        mate_in = int(mate_value)
-                    parsed_score = f"Mate in {mate_in}" if mate_in > 0 else f"Mated in {abs(mate_in)}"
+                    parsed_score = mate_value
+                    # if mate_value.lstrip("-").isdigit():
+                    #     mate_in = int(mate_value)
+                    # parsed_score = f"Mate in {mate_in}" if mate_in > 0 else f"Mated in {abs(mate_in)}"
                 # Handling 'Cp' scores
                 elif "Cp" in score:
                     is_negative = '-' in score  # Check if score is negative
@@ -50,8 +51,7 @@ async def eval_callback(value):
         except Exception as e:
             logging.error(f"Error sending evaluation value: {e}")
 
-
-games = {} # {"default": GameBoard(engine_name="stockfish", callback=game_tree_callback)}  # Pre-initialize the default game
+games = {}
 
 @app.before_serving
 async def initialize_games():

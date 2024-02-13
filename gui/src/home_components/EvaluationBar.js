@@ -22,7 +22,7 @@ const EvaluationBar = ({ score }) => {
         : (score === null ? 'null' : '∞'); // Display infinity symbol for string scores
 
     return (
-        <Paper style={{ width: '40px', height: '550px', marginLeft: '20px', textAlign: 'center', backgroundColor: '#333333', position: 'relative' }}>
+        <Paper style={{ width: '40px', height: '500px', marginLeft: '20px', textAlign: 'center', backgroundColor: '#333333', position: 'relative' }}>
             <Box
                 sx={{
                     position: 'absolute',

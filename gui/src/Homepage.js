@@ -4,7 +4,7 @@ import EvaluationBar from './home_components/EvaluationBar';
 import MenuBar from './home_components/MenuBar';
 import SidePanel from './home_components/SidePanel';
 import BottomPanel from './home_components/BottomPanel';
-import { Grid } from '@mui/material';
+import { Grid, Box } from '@mui/material';
 
 function Homepage() {
   const [boardPosition, setBoardPosition] = useState('start');
@@ -105,33 +105,29 @@ function Homepage() {
   };  
 
   return (
-    <div>
+    <Box sx={{ flexGrow: 1 }}>
       <MenuBar />
-      <Grid container spacing={2}>
-      <Grid item xs={2}>
-        <EvaluationBar score={evaluationScore} />
-        </Grid>
-        <Grid item xs={7}>
-          <Board
-            key={initialFenLoaded ? 'initial-fen' : 'default'}
-            position={boardPosition}
-            onPieceDrop={onDrop}
-            orientation={orientation}
-          />
-        </Grid>
-        <Grid item xs={3}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
+          <EvaluationBar score={evaluationScore} />
+          <Box sx={{ flexGrow: 1 }}>
+            <Board
+              key={initialFenLoaded ? 'initial-fen' : 'default'}
+              position={boardPosition}
+              onPieceDrop={onDrop}
+              orientation={orientation}
+            />
+          </Box>
           <SidePanel
             flipBoard={flipBoard}
             gameTree={gameTree}
             onNavigateForward={navigateForward}
             onNavigateBackward={navigateBackward}
-            />
-        </Grid>
-        <Grid item xs={12}>
-          <BottomPanel />
-        </Grid>
-      </Grid>
-    </div>
+          />
+        </Box>
+        <BottomPanel />
+      </Box>
+    </Box>
   );
 }
 
