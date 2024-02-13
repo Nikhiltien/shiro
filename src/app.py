@@ -6,7 +6,7 @@ from quart import Quart, websocket, request, jsonify, render_template
 from quart_cors import cors
 
 app = Quart(__name__)
-cors(app, allow_origin="http://localhost:3000")  # Apply CORS settings
+cors(app, allow_origin="http://localhost:3000")
 active_websockets = set()
 
 async def game_tree_callback(new_tree):
@@ -114,6 +114,13 @@ async def navigate_backward():
     game = games[game_id]
     move = game.navigate_backward()
     return jsonify({'fen': game.get_current_fen(), 'move': move}), 200 if move else 400
+
+@app.route('/reset', methods=['POST'])
+async def reset():
+    game_id = 'default'
+    game = games[game_id]
+    game.reset_board()
+    return jsonify({'fen': game.get_current_fen()}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)

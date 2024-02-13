@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
-import { Paper, Tabs, Tab, Box, IconButton, Button, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Paper, Tabs, Tab, Box, Button, Divider, Table, TableBody, TableCell, TableContainer, TableRow } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
-import ForwardIcon from '@mui/icons-material/Forward';
-import ReplayIcon from '@mui/icons-material/Replay';
-import RotateLeftIcon from '@mui/icons-material/RotateLeft';
-import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import D3Tree from './D3Tree';
 
 Chart.register(...registerables);

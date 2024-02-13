@@ -76,6 +76,20 @@ function Homepage() {
     }
   };
 
+  const resetBoard = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/reset', { method: 'POST' });
+      const data = await response.json();
+      if (data.fen) {
+        setBoardPosition(data.fen); // Update the board position with the new FEN
+      } else {
+        console.error('Error in resetting the board:', data.error);
+      }
+    } catch (error) {
+      console.error('Error in resetting the board:', error);
+    }
+  };
+
   const navigateForward = async () => {
     try {
       const response = await fetch('http://localhost:5000/navigate_forward', { method: 'POST' });
@@ -133,6 +147,7 @@ function Homepage() {
             flipBoard={flipBoard}
             onNavigateForward={navigateForward}
             onNavigateBackward={navigateBackward}
+            onResetBoard={resetBoard}
           />
         </Box>
       </Box>
