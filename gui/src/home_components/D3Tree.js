@@ -83,9 +83,12 @@ function updateTree(data, svg, treeLayout, dimensions, margin) {
         .attr('class', 'node')
         .attr('transform', d => `translate(${d.x},${d.y})`);
 
-    nodeEnter.append('circle')
-        .attr('fill', '#555')
-        .attr('r', 5);
+        nodeEnter.append('circle')
+        // .attr('r', 0)
+        .transition().duration(750)
+        .attr('r', 5)
+        .attr('fill', d => d.depth === 0 ? 'gray' : d.depth % 2 === 1 ? 'white' : 'black')
+        .attr('stroke', '#000');
 
     nodeEnter.append('text')
         .attr('dy', '0.32em')
