@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
-import { Paper, Tabs, Tab, Box, IconButton, Divider } from '@mui/material';
+import { Paper, Tabs, Tab, Box, IconButton, Button, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Line } from 'react-chartjs-2';
+import { Chart, registerables } from 'chart.js';
 import ForwardIcon from '@mui/icons-material/Forward';
 import ReplayIcon from '@mui/icons-material/Replay';
 import RotateLeftIcon from '@mui/icons-material/RotateLeft';
 import FlipCameraAndroidIcon from '@mui/icons-material/FlipCameraAndroid';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
-import D3Tree from './D3Tree'; 
+import D3Tree from './D3Tree';
+
+Chart.register(...registerables);
+
+function createData(evaluation, line) {
+  return { evaluation, line };
+}
+
+const rows = [
+  createData('Line 1', 159),
+  createData('Line 2', 237),
+  createData('Line 3', -262),
+  createData('Line 4', 262),
+  // Add more rows as needed
+];
 
 function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward }) {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -14,14 +30,28 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
     setSelectedTab(newValue);
   };
 
+  // Sample data for the graph
+  const data = {
+    labels: ['Move 1', 'Move 2', 'Move 3', 'Move 4', 'Move 5'],
+    datasets: [
+      {
+        label: 'Evaluation Graph',
+        data: [12, 19, -3, -5, 11, 14],
+        fill: true,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1
+      }
+    ]
+  };
+
   return (
     <Paper style={{ 
       height: '100%', 
       overflow: 'auto', 
       display: 'flex', 
       flexDirection: 'column',
-      minHeight: '600px', // Set minimum height to be at least the size of the board
-      background: 'linear-gradient(180deg, #333333 0%, #4d4d4d 100%)' // Dark matte gradient
+      minHeight: '600px',
+      background: 'linear-gradient(180deg, #333333 0%, #4d4d4d 100%)'
     }}>
       <Tabs
         value={selectedTab}
@@ -40,6 +70,34 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
       <Divider />
 
       <Box p={2} flexGrow={1}>
+        {selectedTab === 0 && (
+          <>
+            <TableContainer component={Paper}>
+              <Table size="small" aria-label="a dense table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Evaluation</TableCell>
+                    <TableCell align="right">Line</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.map((row) => (
+                    <TableRow key={row.name}>
+                      <TableCell component="th" scope="row">
+                        {row.name}
+                      </TableCell>
+                      <TableCell align="right">{row.calories}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Line data={data} />
+            <Box display="flex" justifyContent="center" alignItems="center" p={1}>
+              <Button variant="contained" color="primary">Game Review</Button>
+            </Box>
+          </>
+        )}
         {selectedTab === 1 && <D3Tree moves={gameTree} />}
         {/* Render D3Tree component when Game Tree tab is selected */}
       </Box>
