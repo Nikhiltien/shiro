@@ -26,7 +26,7 @@ function Board({ position, onPieceDrop, orientation }) {
         position={position}
         onPieceDrop={handlePieceDrop}
         animationDuration={lastInteraction === 'drag' ? 0 : 300}
-        orientation={orientation} // Use the orientation prop here
+        boardOrientation={orientation} // Use the orientation prop here
       />
     </div>
   );
