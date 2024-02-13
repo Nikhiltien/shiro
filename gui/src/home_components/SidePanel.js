@@ -19,7 +19,6 @@ const rows = [
   createData('Line 1', 159),
   createData('Line 2', 237),
   createData('Line 3', -262),
-  createData('Line 4', 262),
   // Add more rows as needed
 ];
 
@@ -32,11 +31,11 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
 
   // Sample data for the graph
   const data = {
-    labels: ['Move 1', 'Move 2', 'Move 3', 'Move 4', 'Move 5'],
+    labels: ['Move 1', 'Move 2', 'Move 3', 'Move 4', 'Move 5', 'Move 6'],
     datasets: [
       {
         label: 'Evaluation Graph',
-        data: [12, 19, -3, -5, 11, 14],
+        data: [12, 19, -16, -5, 14, 11],
         fill: true,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1
@@ -74,19 +73,13 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
           <>
             <TableContainer component={Paper}>
               <Table size="small" aria-label="a dense table">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Evaluation</TableCell>
-                    <TableCell align="right">Line</TableCell>
-                  </TableRow>
-                </TableHead>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={row.name}>
+                    <TableRow key={row.evaluation}>
                       <TableCell component="th" scope="row">
-                        {row.name}
+                        {row.line}
                       </TableCell>
-                      <TableCell align="right">{row.calories}</TableCell>
+                      <TableCell align="right">{row.evaluation}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

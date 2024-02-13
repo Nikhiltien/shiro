@@ -107,7 +107,7 @@ function Homepage() {
   return (
     <Box sx={{ flexGrow: 1 }}>
       <MenuBar />
-      <Box sx={{ pt: '80px', display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+      <Box sx={{ pt: '40px', display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
           {/* Board and EvaluationBar inline */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

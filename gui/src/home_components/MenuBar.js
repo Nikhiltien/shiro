@@ -9,7 +9,7 @@ function MenuBar() {
   };
 
   return (
-    <AppBar position="fixed" sx={{
+    <AppBar position="static" sx={{
       boxShadow: 'none',
       backgroundColor: 'rgba(120, 120, 120, 0.7)', // Example: Adjust with a light grey color
       backdropFilter: 'blur(10px) brightness(150%) contrast(120%)',
