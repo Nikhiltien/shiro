@@ -122,6 +122,12 @@ class GameBoard:
         try:
             pgn_io = io.StringIO(pgn_string)
             self.game = chess.pgn.read_game(pgn_io)
+            new_state = self.has_state_changed()
+            if new_state and self.state_callback is not None:
+                asyncio.create_task(self.state_callback(new_state))
+        
+            if self.background_analysis_task:
+                asyncio.create_task(self.restart_background_analysis())
             return self.game
         except Exception as e:
             self.logger.error(f"Error parsing PGN string: {e}")
@@ -130,7 +136,12 @@ class GameBoard:
     def reset_board(self):
         self.board.reset()
         self.game = chess.pgn.Game()
-        self.prev_state_hash = self._generate_state_hash()
+        new_state = self.has_state_changed()
+        if new_state and self.state_callback is not None:
+            asyncio.create_task(self.state_callback(new_state))
+    
+        if self.background_analysis_task:
+            asyncio.create_task(self.restart_background_analysis())
 
     def _generate_state_hash(self):
         game_tree = self.list_variations()

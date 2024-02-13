@@ -101,6 +101,17 @@ async def current_fen():
     return jsonify({'fen': game_board.get_current_fen() if game_board else 'Game not found'}), \
            (200 if game_board else 404)
 
+@app.route('/pgn', methods=['POST'])
+async def pgn_to_game():
+    game_id = 'default'
+    game = games[game_id]
+
+    pgn_data = await request.get_json()
+    pgn = pgn_data.get('pgn')
+    pgn = f"""{pgn}"""
+    game.pgn_to_game(pgn)
+    return jsonify({'fen': game.get_current_fen()}), 200
+
 @app.route('/navigate_forward', methods=['POST'])
 async def navigate_forward():
     game_id = 'default'
