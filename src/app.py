@@ -1,4 +1,6 @@
 import json
+import asyncio
+import logging
 from game_board import GameBoard
 from quart import Quart, websocket, request, jsonify, render_template
 from quart_cors import cors
@@ -10,17 +12,52 @@ active_websockets = set()
 async def game_tree_callback(new_tree):
     for ws in active_websockets:
         try:
-            print(new_tree)
+            # print(new_tree)
             await ws.send(json.dumps({'game_tree': new_tree}))
         except Exception as e:
             # Handle exceptions, e.g., closed connections
             pass
 
+async def eval_callback(value):
+    for ws in active_websockets:
+        try:
+            # Parsing the score
+            score = value.get('score')
+            if score:
+                # Handling 'Mate' scores
+                if "Mate" in score:
+                    mate_value = score.split('(')[1].split(')')[0]
+                    if mate_value.lstrip("-").isdigit():
+                        mate_in = int(mate_value)
+                    parsed_score = f"Mate in {mate_in}" if mate_in > 0 else f"Mated in {abs(mate_in)}"
+                # Handling 'Cp' scores
+                elif "Cp" in score:
+                    is_negative = '-' in score  # Check if score is negative
+                    cp_value = score.split('+')[1].split(')')[0] if '+' in score else score.split('-')[1].split(')')[0]
+                    if cp_value.isdigit():
+                        cp_score = int(cp_value)
+                        if is_negative:  # Keep the score negative if originally negative
+                            cp_score *= -1
+                        if "BLACK" in score:
+                            cp_score *= -1  # Invert score for BLACK
+                        parsed_score = cp_score / 100
+                    else:
+                        parsed_score = None
+
+                await ws.send(json.dumps({'value': parsed_score}))
+            else:
+                logging.error("No score found in evaluation value")
+        except Exception as e:
+            logging.error(f"Error sending evaluation value: {e}")
+
+
 games = {} # {"default": GameBoard(engine_name="stockfish", callback=game_tree_callback)}  # Pre-initialize the default game
 
 @app.before_serving
 async def initialize_games():
-    games["default"] = GameBoard(engine_name="stockfish", callback=game_tree_callback)
+    games["default"] = GameBoard(engine_name="stockfish", callback=game_tree_callback, eval_callback=eval_callback)
+    await asyncio.sleep(2)
+    await games["default"].start_background_analysis(depth=20)
 
 @app.route('/')
 async def index():

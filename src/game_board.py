@@ -99,7 +99,7 @@ class OpeningNode:
 
 
 class GameBoard:
-    def __init__(self, engine_name=None, callback=None):
+    def __init__(self, engine_name=None, callback=None, eval_callback=None):
         self.logger = logging.getLogger(__name__)
         self.game = None
         self.board = chess.Board()
@@ -112,6 +112,7 @@ class GameBoard:
         self.background_analysis_task = None
         self.prev_state_hash = None
         self.state_callback = callback
+        self.eval_callback = eval_callback
         self.reset_board()
 
         if self.engine_path:
@@ -382,7 +383,13 @@ class GameBoard:
                     pv = info.get("pv")
                     engine_depth = info.get("depth")
                     if score is not None and pv is not None:
-                        print(f"Score: {score}, Depth: {engine_depth}")
+                        evaluation = {
+                            "score": str(score),
+                            "depth": engine_depth,
+                            # "pv": [str(move) for move in pv]
+                        }
+                        if self.eval_callback:
+                            await self.eval_callback(evaluation)
                     else:
                         self.logger.debug("Waiting for engine analysis...")
 

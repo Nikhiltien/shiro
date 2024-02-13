@@ -49,6 +49,8 @@ function Homepage() {
         setBoardPosition(data.fen);
       } else if (data.game_tree) {
         setGameTree(JSON.parse(data.game_tree)); // Update the game tree data
+      } else if (data.value) {
+        setEvaluationScore(data.value);
       } else if (data.error) {
         console.error('Illegal move or error:', data.error);
       }
@@ -106,9 +108,9 @@ function Homepage() {
     <div>
       <MenuBar />
       <Grid container spacing={2}>
-      {/* <Grid item xs={2}>
-          <EvaluationBar />
-        </Grid> */}
+      <Grid item xs={2}>
+        <EvaluationBar score={evaluationScore} />
+        </Grid>
         <Grid item xs={7}>
           <Board
             key={initialFenLoaded ? 'initial-fen' : 'default'}
