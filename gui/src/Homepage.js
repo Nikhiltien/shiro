@@ -4,7 +4,7 @@ import EvaluationBar from './home_components/EvaluationBar';
 import MenuBar from './home_components/MenuBar';
 import SidePanel from './home_components/SidePanel';
 import BottomPanel from './home_components/BottomPanel';
-import { Grid, Box } from '@mui/material';
+import { Box } from '@mui/material';
 
 function Homepage() {
   const [boardPosition, setBoardPosition] = useState('start');
@@ -107,25 +107,33 @@ function Homepage() {
   return (
     <Box sx={{ flexGrow: 1 }}>
       <MenuBar />
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ pt: '80px', display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
-          <EvaluationBar score={evaluationScore} />
-          <Box sx={{ flexGrow: 1 }}>
-            <Board
-              key={initialFenLoaded ? 'initial-fen' : 'default'}
-              position={boardPosition}
-              onPieceDrop={onDrop}
-              orientation={orientation}
+          {/* Board and EvaluationBar inline */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <EvaluationBar score={evaluationScore} />
+            <Box sx={{ flexGrow: 1, minHeight: '600px', minWidth: '600px' }}>
+              <Board
+                key={initialFenLoaded ? 'initial-fen' : 'default'}
+                position={boardPosition}
+                onPieceDrop={onDrop}
+                orientation={orientation}
+              />
+            </Box>
+          </Box>
+          {/* SidePanel with padding */}
+          <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', minHeight: '600px' }}>
+            <SidePanel
+              flipBoard={flipBoard}
+              gameTree={gameTree}
+              onNavigateForward={navigateForward}
+              onNavigateBackward={navigateBackward}
             />
           </Box>
-          <SidePanel
-            flipBoard={flipBoard}
-            gameTree={gameTree}
-            onNavigateForward={navigateForward}
-            onNavigateBackward={navigateBackward}
-          />
         </Box>
-        <BottomPanel />
+        <Box sx={{ flexGrow: 1 }}>
+          <BottomPanel />
+        </Box>
       </Box>
     </Box>
   );

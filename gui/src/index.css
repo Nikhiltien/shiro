@@ -1,13 +1,31 @@
+/* index.css */
+:root {
+  --primary-color: #2a2f3a; /* Dark grey-blue */
+  --secondary-color: #4f5d75; /* Slate grey */
+  --background-color: #1b1b1b; /* Dark navy */
+  --text-color: #e0e1dd; /* Off-white */
+  --accent-color: #ef8354; /* Bright orange */
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Custom AppBar Styling */
+.custom-appbar {
+  display: flex;
+  background: linear-gradient(45deg, #090d2b, #000a54); /* Gradient background */
+  border-bottom: 2px solid #131188; /* Accent border */
+  padding: 10px;
+}
+
+/* Typography Styling */
+.appbar-title {
+  color: #e0e1dd; /* Light color for contrast */
+  font-weight: bold; /* Bold font weight */
 }

@@ -21,25 +21,33 @@ const EvaluationBar = ({ score }) => {
         ? score.toFixed(2).toString() 
         : (score === null ? 'null' : '∞'); // Display infinity symbol for string scores
 
-    return (
-        <Paper style={{ width: '40px', height: '500px', marginLeft: '20px', textAlign: 'center', backgroundColor: '#333333', position: 'relative' }}>
-            <Box
-                sx={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: '5px',
-                    right: '5px',
-                    height: progressHeight,
-                    backgroundColor: barColor,
-                    border: '1px solid #888',
-                    transition: 'height 0.5s ease-in-out',
-                }}
-            />
-            <Typography variant="body1" style={{ position: 'absolute', width: '100%', top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF' }}>
-                {displayScore}
-            </Typography>
-        </Paper>
-    );
-};
-
+        return (
+            <Paper style={{ width: '30px', height: '600px', marginLeft: '20px', textAlign: 'center', backgroundColor: '#333333', position: 'relative' }}>
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: '2px',
+                        right: '2px',
+                        height: progressHeight,
+                        backgroundColor: barColor,
+                        border: '1px solid #888',
+                        transition: 'height 0.5s ease-in-out',
+                    }}
+                />
+                <Typography variant="body1" style={{ 
+                    position: 'absolute', 
+                    width: '100%', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    color: '#FFFFFF',
+                    fontSize: 'small', // smaller text size
+                    fontWeight: 'bold', // bolder text
+                }}>
+                    {displayScore}
+                </Typography>
+            </Paper>
+        );
+    };
+    
 export default EvaluationBar;

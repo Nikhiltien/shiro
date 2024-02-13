@@ -21,7 +21,7 @@ function Board({ position, onPieceDrop, orientation }) {
   // console.log("Board component render with position:", position);
 
   return (
-    <div style={{ maxWidth: '500px', margin: 'auto' }}>
+    <div style={{ maxWidth: '600px', margin: 'auto' }}>
       <Chessboard
         position={position}
         onPieceDrop={handlePieceDrop}

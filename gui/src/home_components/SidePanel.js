@@ -15,7 +15,14 @@ function SidePanel({ flipBoard, gameTree, onNavigateForward, onNavigateBackward 
   };
 
   return (
-    <Paper style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <Paper style={{ 
+      height: '100%', 
+      overflow: 'auto', 
+      display: 'flex', 
+      flexDirection: 'column',
+      minHeight: '600px', // Set minimum height to be at least the size of the board
+      background: 'linear-gradient(180deg, #333333 0%, #4d4d4d 100%)' // Dark matte gradient
+    }}>
       <Tabs
         value={selectedTab}
         onChange={handleChange}
